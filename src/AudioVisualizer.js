@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Upload, Play, Pause, AlertCircle, Sliders, RefreshCw, Zap, BarChart4, Circle, Waves, Hexagon, 
   Maximize, Minimize, Grid3X3, Box, Layers, Star, Sparkles, Wand2, Settings, PanelRight, 
-  Flame, Droplets, Scan, Dna, FlaskConical, Flower2, Mountain, Sunglasses } from 'lucide-react';
+  Flame, Droplets, Scan, Dna, FlaskConical, Flower2, Mountain, Sunglasses, Type, Image } from 'lucide-react';
+
+// Import custom components
+import BrandingLayer from './components/BrandingLayer';
+import PresetSelector from './components/PresetSelector';
+import { defaultSettings } from './config/presets';
 
 const AudioVisualizer = () => {
   const [audioSource, setAudioSource] = useState(null);
@@ -26,6 +31,11 @@ const AudioVisualizer = () => {
   const [showFps, setShowFps] = useState(false);
   const [motionEffects, setMotionEffects] = useState(true);
   const [glowEffects, setGlowEffects] = useState(true);
+  
+  // Branding options
+  const [showBranding, setShowBranding] = useState(false);
+  const [showPresetsPanel, setShowPresetsPanel] = useState(false);
+  const [brandingSettings, setBrandingSettings] = useState(defaultSettings.branding);
   
   // Performance monitoring
   const fpsRef = useRef(0);
@@ -782,6 +792,34 @@ const AudioVisualizer = () => {
     setShowControls(!showControls);
   };
   
+  // Handle visualization preset selection
+  const handlePresetSelect = (preset) => {
+    if (!preset) return;
+    
+    // Apply visualization settings from preset
+    if (preset.visualizationType) setVisualizationType(preset.visualizationType);
+    if (preset.colorTheme) setColorTheme(preset.colorTheme);
+    if (preset.backgroundStyle) setBackgroundStyle(preset.backgroundStyle);
+    if (preset.backgroundTheme) setBackgroundTheme(preset.backgroundTheme);
+    if (preset.barStyle) setBarStyle(preset.barStyle);
+    if (preset.sensitivity) setSensitivity(preset.sensitivity);
+    if (preset.glowEffects !== undefined) setGlowEffects(preset.glowEffects);
+    if (preset.motionEffects !== undefined) setMotionEffects(preset.motionEffects);
+  };
+  
+  // Handle branding preset selection
+  const handleBrandingPresetSelect = (preset) => {
+    if (!preset) return;
+    
+    // Enable branding if not already enabled
+    setShowBranding(true);
+    
+    // Apply branding settings from preset
+    // These will be passed to the BrandingLayer component
+    // Store branding settings in state to pass to BrandingLayer
+    setBrandingSettings(preset);
+  };
+  
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -932,8 +970,15 @@ const AudioVisualizer = () => {
       {/* Canvas for visualization */}
       <div 
         className={`relative ${isFullScreen ? 'w-full h-full' : 'w-full mb-6 bg-gray-900 rounded-2xl overflow-hidden shadow-inner border border-gray-700'}`}
-        onMouseMove={() => isFullScreen && setShowControls(true)}
-        onMouseLeave={() => isFullScreen && setTimeout(() => setShowControls(false), 2000)}
+        onMouseMove={() => {
+          if (isFullScreen) {
+            setShowControls(true);
+            // Hide controls after mouse stops moving for 3 seconds
+            clearTimeout(window.controlsTimer);
+            window.controlsTimer = setTimeout(() => setShowControls(false), 3000);
+          }
+        }}
+        onMouseLeave={() => isFullScreen && setShowControls(false)}
       >
         <canvas 
           ref={canvasRef}
@@ -945,16 +990,25 @@ const AudioVisualizer = () => {
         {/* Fullscreen button overlay */}
         <button
           onClick={handleFullScreenToggle}
-          className={`absolute top-3 right-3 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-all z-10 ${isFullScreen && !showControls ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute top-3 right-3 p-2 bg-black bg-opacity-50 rounded-full text-white hover:bg-opacity-70 transition-opacity duration-300 z-10 ${isFullScreen && !showControls ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
           title={isFullScreen ? "Exit fullscreen (F)" : "Enter fullscreen (F)"}
         >
           {isFullScreen ? <Minimize size={20} /> : <Maximize size={20} />}
         </button>
         
+        {/* Branding overlay for logo and text */}
+        <BrandingLayer 
+          isFullScreen={isFullScreen}
+          showControls={showControls}
+          showBranding={showBranding}
+          themeColor={colorTheme}
+          brandingSettings={brandingSettings}
+        />
+        
         {/* YouTube-style controls bar in fullscreen */}
         {isFullScreen && (
           <div 
-            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 flex items-center justify-between ${showControls ? 'opacity-100' : 'opacity-0'}`}
+            className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 transition-opacity duration-300 flex items-center justify-between ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
             style={{ height: '80px' }}
           >
             <div className="flex items-center space-x-3">
@@ -1009,6 +1063,15 @@ const AudioVisualizer = () => {
                 title="Toggle Glow Effects"
               >
                 <Wand2 size={20} />
+              </button>
+              
+              {/* Toggle branding button */}
+              <button 
+                onClick={() => setShowBranding(!showBranding)}
+                className={`p-1 rounded-lg ${showBranding ? 'bg-white text-black' : 'text-white hover:bg-white/20'} transition`}
+                title="Toggle Branding"
+              >
+                <Image size={20} />
               </button>
               
               {/* Exit fullscreen button */}
@@ -1401,6 +1464,27 @@ const AudioVisualizer = () => {
           className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
         />
       </div>
+      
+      {/* Show/Hide Presets Panel */}
+      <div className="w-full flex justify-center mb-4">
+        <button
+          onClick={() => setShowPresetsPanel(!showPresetsPanel)}
+          className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
+            showPresetsPanel ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-white'
+          }`}
+        >
+          <Zap className="mr-2" size={18} />
+          {showPresetsPanel ? 'Hide Preset Library' : 'DJ & Event Presets'}
+        </button>
+      </div>
+      
+      {/* Presets Panel - shown only when enabled */}
+      {showPresetsPanel && (
+        <PresetSelector 
+          onSelectPreset={handlePresetSelect}
+          onSelectBrandingPreset={handleBrandingPresetSelect}
+        />
+      )}
       
       {/* Error message */}
       {errorMessage && (
