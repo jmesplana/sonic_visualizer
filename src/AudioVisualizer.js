@@ -8,6 +8,10 @@ import BrandingLayer from './components/BrandingLayer';
 import PresetSelector from './components/PresetSelector';
 import { defaultSettings } from './config/presets';
 
+// Import visualization system
+import { renderVisualization } from './visualizations';
+import { calculateFps, drawFpsCounter } from './visualizations/common';
+
 const AudioVisualizer = () => {
   const [audioSource, setAudioSource] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -110,10 +114,7 @@ const AudioVisualizer = () => {
       
       // Calculate FPS
       const now = performance.now();
-      const elapsed = now - lastFrameTimeRef.current;
-      if (elapsed > 0) {
-        fpsRef.current = 1000 / elapsed;
-      }
+      fpsRef.current = calculateFps(now, lastFrameTimeRef.current);
       lastFrameTimeRef.current = now;
       
       animationFrameRef.current = requestAnimationFrame(draw);
@@ -128,624 +129,33 @@ const AudioVisualizer = () => {
       const width = canvas.width;
       const height = canvas.height;
       
+      // Get audio data
       analyser.getByteFrequencyData(dataArray);
       
-      // Clear the canvas
-      ctx.clearRect(0, 0, width, height);
-      
-      // Get color theme gradient
-      let gradient;
-      
-      switch (colorTheme) {
-        case 'neon':
-          gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#00c6ff');
-          gradient.addColorStop(1, '#0072ff');
-          break;
-        case 'fire':
-          gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#ff416c');
-          gradient.addColorStop(1, '#ff4b2b');
-          break;
-        case 'cyberpunk':
-          gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#f953c6');
-          gradient.addColorStop(0.5, '#ff7e5f');
-          gradient.addColorStop(1, '#b967ff');
-          break;
-        case 'pastel':
-          gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#a18cd1');
-          gradient.addColorStop(1, '#fbc2eb');
-          break;
-        case 'grayscale':
-          gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#ffffff');
-          gradient.addColorStop(1, '#5a5a5a');
-          break;
-        default:
-          gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#00c6ff');
-          gradient.addColorStop(1, '#0072ff');
-      }
-      
-      // Draw background
-      switch (backgroundStyle) {
-        case 'gradient': {
-          const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-          
-          if (backgroundTheme === 'dark') {
-            // Dark theme gradient
-            bgGradient.addColorStop(0, 'rgba(15, 15, 20, 1)');
-            bgGradient.addColorStop(1, 'rgba(30, 30, 40, 1)');
-          } else if (backgroundTheme === 'light') {
-            // Light theme gradient
-            bgGradient.addColorStop(0, 'rgba(240, 240, 245, 1)');
-            bgGradient.addColorStop(1, 'rgba(220, 220, 230, 1)');
-          } else if (backgroundTheme === 'night') {
-            // Night theme - deep blue
-            bgGradient.addColorStop(0, 'rgba(5, 5, 20, 1)');
-            bgGradient.addColorStop(1, 'rgba(10, 10, 35, 1)');
-          } else if (backgroundTheme === 'sunset') {
-            // Sunset theme
-            bgGradient.addColorStop(0, 'rgba(35, 10, 20, 1)');
-            bgGradient.addColorStop(1, 'rgba(80, 20, 40, 1)');
-          } else if (backgroundTheme === 'ocean') {
-            // Ocean theme
-            bgGradient.addColorStop(0, 'rgba(5, 30, 50, 1)');
-            bgGradient.addColorStop(1, 'rgba(10, 50, 80, 1)');
-          } else if (backgroundTheme === 'forest') {
-            // Forest theme
-            bgGradient.addColorStop(0, 'rgba(10, 40, 20, 1)');
-            bgGradient.addColorStop(1, 'rgba(20, 60, 30, 1)');
-          }
-          
-          ctx.fillStyle = bgGradient;
-          ctx.fillRect(0, 0, width, height);
-          break;
-        }
-          
-        case 'starfield': {
-          // Draw starfield background
-          let baseColor;
-          if (backgroundTheme === 'night') {
-            baseColor = '#000018'; // Deep blue
-          } else if (backgroundTheme === 'sunset') {
-            baseColor = '#180008'; // Very dark red
-          } else if (backgroundTheme === 'ocean') {
-            baseColor = '#001018'; // Very dark teal
-          } else if (backgroundTheme === 'forest') {
-            baseColor = '#001800'; // Very dark green
-          } else if (backgroundTheme === 'light') {
-            baseColor = '#e0e0e8'; // Light grayish-blue
-          } else {
-            baseColor = '#000018'; // Default deep blue
-          }
-          
-          ctx.fillStyle = baseColor;
-          ctx.fillRect(0, 0, width, height);
-          
-          // Initialize stars if needed
-          if (starsRef.current.length === 0) {
-            for (let i = 0; i < 100; i++) {
-              starsRef.current.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: Math.random() * 2 + 0.5,
-                bright: Math.random() * 0.5 + 0.5
-              });
-            }
-          }
-          
-          // Draw stars
-          for (let i = 0; i < starsRef.current.length; i++) {
-            const star = starsRef.current[i];
-            const bright = star.bright * (0.8 + 0.2 * Math.sin(now / 500 + i));
-            
-            // Star color based on theme
-            let starColor;
-            if (backgroundTheme === 'sunset') {
-              starColor = `rgba(255, 220, 180, ${bright})`; // Warm stars
-            } else if (backgroundTheme === 'ocean') {
-              starColor = `rgba(180, 220, 255, ${bright})`; // Cool blue stars
-            } else if (backgroundTheme === 'forest') {
-              starColor = `rgba(220, 255, 220, ${bright})`; // Slight green tint
-            } else if (backgroundTheme === 'light') {
-              starColor = `rgba(80, 80, 120, ${bright})`; // Darker stars on light bg
-            } else {
-              starColor = `rgba(255, 255, 255, ${bright})`; // White stars
-            }
-            
-            ctx.fillStyle = starColor;
-            ctx.beginPath();
-            ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          break;
-        }
-          
-        case 'solid': {
-          // Solid background with theme colors
-          let bgColor;
-          
-          if (backgroundTheme === 'dark') {
-            bgColor = '#121212'; // Dark gray
-          } else if (backgroundTheme === 'light') {
-            bgColor = '#f0f0f0'; // Light gray
-          } else if (backgroundTheme === 'night') {
-            bgColor = '#050510'; // Deep blue-black
-          } else if (backgroundTheme === 'sunset') {
-            bgColor = '#201020'; // Deep purple-red
-          } else if (backgroundTheme === 'ocean') {
-            bgColor = '#0a2030'; // Deep blue-green
-          } else if (backgroundTheme === 'forest') {
-            bgColor = '#0a2010'; // Deep green
-          }
-          
-          ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, width, height);
-          break;
-        }
-          
-        case 'custom': {
-          // Custom color background
-          ctx.fillStyle = customBgColor;
-          ctx.fillRect(0, 0, width, height);
-          break;
-        }
-      }
-      
-      // Draw different visualizations
-      switch (visualizationType) {
-        case 'bars': {
-          const barWidth = width / (bufferLength / 4);
-          let x = 0;
-          
-          for (let i = 0; i < bufferLength / 4; i++) {
-            const barHeight = dataArray[i] * (sensitivity / 255.0) * height;
-            
-            // Apply different bar styles
-            if (barStyle === 'normal') {
-              ctx.fillStyle = gradient;
-              ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
-            } else if (barStyle === 'blocks') {
-              const blockHeight = 5;
-              const blocks = Math.floor(barHeight / blockHeight);
-              
-              for (let j = 0; j < blocks; j++) {
-                const blockY = height - (j + 1) * blockHeight;
-                ctx.fillStyle = gradient;
-                ctx.fillRect(x, blockY, barWidth - 1, blockHeight - 1);
-              }
-            } else if (barStyle === 'curve') {
-              ctx.beginPath();
-              ctx.moveTo(x, height);
-              ctx.lineTo(x, height - barHeight);
-              ctx.arc(x + barWidth / 2, height - barHeight, barWidth / 2, Math.PI, 0, true);
-              ctx.lineTo(x + barWidth, height);
-              ctx.fillStyle = gradient;
-              ctx.fill();
-            }
-            
-            x += barWidth;
-          }
-          break;
-        }
-          
-        case 'wave': {
-          // Draw dual wave visualization with mirroring and oscillation
-          const centerY = height / 2;
-          const waveAmplitude = height / 4 * sensitivity;
-          const sliceWidth = width / (bufferLength / 2);
-          
-          // Get time-based oscillation for wave movement
-          const oscillation = Math.sin(now / 2000) * 10;
-          
-          // Create two paths for top and bottom waves
-          for (let waveNum = 0; waveNum < 2; waveNum++) {
-            ctx.beginPath();
-            
-            // Use different segments of the frequency data for each wave
-            const startOffset = waveNum * (bufferLength / 2);
-            let x = 0;
-            
-            for (let i = 0; i < bufferLength / 2; i++) {
-              // Add smoothing between points
-              const dataIndex = startOffset + i;
-              const currentValue = dataArray[dataIndex] / 255.0;
-              
-              // Calculate y-position with centerline as reference
-              // Top wave goes up from center, bottom wave goes down from center
-              const direction = waveNum === 0 ? -1 : 1;
-              const y = centerY + (direction * currentValue * waveAmplitude) + oscillation;
-              
-              if (i === 0) {
-                ctx.moveTo(x, y);
-              } else {
-                // Use quadratic curves for smoother waves
-                const prevX = x - sliceWidth;
-                const prevY = centerY + (direction * (dataArray[dataIndex - 1] / 255.0) * waveAmplitude) + oscillation;
-                ctx.quadraticCurveTo((prevX + x) / 2, (prevY + y) / 2, x, y);
-              }
-              
-              x += sliceWidth;
-            }
-            
-            // Different colors for top and bottom waves
-            const hue1 = (now / 50) % 360;
-            const hue2 = (hue1 + 180) % 360;
-            const waveHue = waveNum === 0 ? hue1 : hue2;
-            
-            ctx.strokeStyle = `hsla(${waveHue}, 100%, 60%, 0.7)`;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 10;
-              ctx.shadowColor = `hsla(${waveHue}, 100%, 70%, 0.5)`;
-              ctx.stroke();
-              ctx.shadowBlur = 0;
-            }
-          }
-          
-          // Add center line with glowing dots
-          const dotCount = 20;
-          const dotSpacing = width / dotCount;
-          
-          for (let i = 0; i < dotCount; i++) {
-            const x = i * dotSpacing;
-            
-            // Get amplitude from nearby frequencies
-            const freqIndex = Math.floor((i / dotCount) * (bufferLength / 2));
-            const amplitude = dataArray[freqIndex] / 255.0;
-            
-            // Pulse size based on amplitude
-            const dotSize = 1 + (amplitude * 4 * sensitivity);
-            
-            // Oscillate position slightly
-            const y = centerY + (Math.sin(now / 500 + i * 0.3) * 2);
-            
-            ctx.beginPath();
-            ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.fill();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 8;
-              ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
-              ctx.fill();
-              ctx.shadowBlur = 0;
-            }
-          }
-          
-          break;
-        }
-          
-        case 'circle': {
-          // Draw circular equalizer with dynamic rotation and pulsing
-          const centerX = width / 2;
-          const centerY = height / 2;
-          const baseRadius = Math.min(width, height) / 3;
-          
-          // Calculate average frequency value for pulsing effect
-          let sum = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i];
-          }
-          const avgAmplitude = sum / bufferLength * sensitivity;
-          const pulseRadius = baseRadius * (0.9 + 0.2 * (avgAmplitude / 255));
-          
-          // Base rotation that changes over time
-          const rotation = now / 3000;
-          
-          // Draw background circles
-          const circleCount = 3;
-          for (let i = 0; i < circleCount; i++) {
-            const circleRadius = pulseRadius * (0.7 + (i * 0.15));
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, circleRadius, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.03 + (i * 0.03)})`;
-            ctx.lineWidth = 1 + i;
-            ctx.stroke();
-          }
-          
-          // Draw frequency bars around circle
-          const barCount = 120; // More bars for smoother appearance
-          const angleStep = (Math.PI * 2) / barCount;
-          
-          for (let i = 0; i < barCount; i++) {
-            // Sample frequencies with emphasis on lower frequencies
-            const freqIndex = Math.floor(Math.pow(i / barCount, 1.5) * (bufferLength / 4));
-            
-            // Get amplitude and add some baseline so there's always something to see
-            const amplitude = (dataArray[freqIndex] / 255.0) * sensitivity;
-            const barHeight = pulseRadius * amplitude * 0.5;
-            
-            // Calculate angle with rotation over time
-            const angle = rotation + (i * angleStep);
-            
-            // Inner and outer points
-            const x1 = centerX + Math.cos(angle) * pulseRadius;
-            const y1 = centerY + Math.sin(angle) * pulseRadius;
-            const x2 = centerX + Math.cos(angle) * (pulseRadius + barHeight);
-            const y2 = centerY + Math.sin(angle) * (pulseRadius + barHeight);
-            
-            // Draw bar
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            
-            // Color based on frequency
-            const hue = (i / barCount) * 360;
-            ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.8)`;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 10;
-              ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.6)`;
-              ctx.stroke();
-              ctx.shadowBlur = 0;
-            }
-          }
-          
-          // Draw inner filled circle that pulses with the beat
-          const innerRadius = pulseRadius * 0.2 * (0.8 + 0.4 * (avgAmplitude / 255));
-          const gradientInner = ctx.createRadialGradient(
-            centerX, centerY, 0,
-            centerX, centerY, innerRadius
-          );
-          
-          const hue = (now / 50) % 360;
-          gradientInner.addColorStop(0, `hsla(${hue}, 100%, 70%, 0.8)`);
-          gradientInner.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
-          
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
-          ctx.fillStyle = gradientInner;
-          ctx.fill();
-          
-          break;
-        }
-          
-        case 'terrain': {
-          // Draw terrain visualization (frequency as a landscape)
-          ctx.beginPath();
-          ctx.moveTo(0, height);
-          
-          const terrainWidth = width / (bufferLength / 2);
-          let x = 0;
-          
-          for (let i = 0; i < bufferLength / 2; i++) {
-            const barHeight = dataArray[i] * (sensitivity / 255.0) * height;
-            ctx.lineTo(x, height - barHeight);
-            x += terrainWidth;
-          }
-          
-          ctx.lineTo(width, height);
-          ctx.closePath();
-          
-          // Create terrain gradient
-          const terrainGradient = ctx.createLinearGradient(0, 0, 0, height);
-          terrainGradient.addColorStop(0, 'rgba(100, 100, 255, 0.8)');
-          terrainGradient.addColorStop(0.5, 'rgba(80, 80, 200, 0.6)');
-          terrainGradient.addColorStop(1, 'rgba(50, 50, 150, 0.4)');
-          
-          ctx.fillStyle = terrainGradient;
-          ctx.fill();
-          break;
-        }
-
-        case 'particles': {
-          // Particle visualization that reacts to audio
-          const centerX = width / 2;
-          const centerY = height / 2;
-          
-          // Calculate average frequency value for this frame
-          let sum = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i];
-          }
-          const avg = sum / bufferLength * sensitivity;
-          
-          // Create particles if needed
-          if (particlesRef.current.length === 0) {
-            for (let i = 0; i < 100; i++) {
-              particlesRef.current.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: Math.random() * 5 + 2,
-                speed: Math.random() * 2 + 1,
-                angle: Math.random() * Math.PI * 2,
-                color: Math.floor(Math.random() * 360)
-              });
-            }
-          }
-          
-          // Update and draw particles
-          for (let i = 0; i < particlesRef.current.length; i++) {
-            const p = particlesRef.current[i];
-            
-            // Update particle position based on audio amplitude
-            const intensity = avg / 255.0;
-            p.x += Math.cos(p.angle) * p.speed * intensity * 3;
-            p.y += Math.sin(p.angle) * p.speed * intensity * 3;
-            
-            // Bounce off edges
-            if (p.x < 0 || p.x > width) {
-              p.angle = Math.PI - p.angle;
-              p.x = Math.max(0, Math.min(width, p.x));
-            }
-            if (p.y < 0 || p.y > height) {
-              p.angle = -p.angle;
-              p.y = Math.max(0, Math.min(height, p.y));
-            }
-            
-            // Draw particle
-            const size = p.size * (0.5 + intensity * 1.5);
-            const hue = (p.color + Math.floor(now / 50)) % 360;
-            ctx.fillStyle = `hsla(${hue}, 100%, 60%, ${0.5 + intensity * 0.5})`;
-            
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
-            ctx.fill();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 10;
-              ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.7)`;
-              ctx.fill();
-              ctx.shadowBlur = 0;
-            }
-          }
-          break;
-        }
-
-        case 'spiral': {
-          // Spiral visualization
-          const centerX = width / 2;
-          const centerY = height / 2;
-          const maxRadius = Math.min(width, height) / 2 * 0.8;
-          
-          for (let i = 0; i < bufferLength; i += 2) {
-            // Calculate radius based on index
-            const radius = (i / bufferLength) * maxRadius;
-            
-            // Calculate angle based on index and time
-            const baseAngle = (i / bufferLength) * Math.PI * 20;
-            const timeOffset = now / 2000;
-            const angle = baseAngle + timeOffset;
-            
-            // Calculate point on spiral
-            const x = centerX + Math.cos(angle) * radius;
-            const y = centerY + Math.sin(angle) * radius;
-            
-            // Size based on audio data
-            const size = (dataArray[i] / 255.0) * 10 * sensitivity;
-            
-            // Draw point
-            const hue = (i / bufferLength) * 360;
-            ctx.fillStyle = `hsla(${hue}, 100%, 60%, 0.7)`;
-            
-            ctx.beginPath();
-            ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fill();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 10;
-              ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.5)`;
-              ctx.fill();
-              ctx.shadowBlur = 0;
-            }
-          }
-          break;
-        }
-
-        case 'spectrum': {
-          // Spectrum analyzer with smooth transitions
-          const barWidth = width / (bufferLength / 8);
-          let x = 0;
-          
-          // Initialize or update spectrum data
-          if (spectrumDataRef.current.length !== bufferLength / 8) {
-            spectrumDataRef.current = new Array(bufferLength / 8).fill(0);
-          }
-          
-          for (let i = 0; i < bufferLength / 8; i++) {
-            // Apply smoothing
-            spectrumDataRef.current[i] = spectrumDataRef.current[i] * 0.7 + dataArray[i] * 0.3;
-            
-            const barHeight = spectrumDataRef.current[i] * (sensitivity / 255.0) * height;
-            
-            // Create color gradient based on frequency
-            const hue = (i / (bufferLength / 8)) * 270; // From red to blue
-            ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
-            
-            // Draw bar
-            const barX = x;
-            const barY = height - barHeight;
-            
-            ctx.beginPath();
-            ctx.moveTo(barX, height);
-            ctx.lineTo(barX, barY);
-            ctx.lineTo(barX + barWidth - 1, barY);
-            ctx.lineTo(barX + barWidth - 1, height);
-            ctx.fill();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 15;
-              ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.5)`;
-              ctx.fill();
-              ctx.shadowBlur = 0;
-            }
-            
-            x += barWidth;
-          }
-          break;
-        }
-
-        case 'radialBars': {
-          // Radial bars visualization
-          const centerX = width / 2;
-          const centerY = height / 2;
-          const maxRadius = Math.min(width, height) / 2 * 0.8;
-          const barCount = 180;
-          const angleStep = (Math.PI * 2) / barCount;
-          
-          // Draw background circle
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, maxRadius / 4, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          
-          // Sample from frequency data to cover full circle
-          for (let i = 0; i < barCount; i++) {
-            const dataIndex = Math.floor((i / barCount) * (bufferLength / 2));
-            const amplitude = dataArray[dataIndex] * (sensitivity / 255.0);
-            
-            // Calculate bar height (which is actually length in radial context)
-            const barHeight = amplitude * maxRadius * 0.7;
-            
-            // Calculate angle
-            const angle = i * angleStep;
-            
-            // Inner point (circle edge)
-            const innerRadius = maxRadius / 4;
-            const x1 = centerX + Math.cos(angle) * innerRadius;
-            const y1 = centerY + Math.sin(angle) * innerRadius;
-            
-            // Outer point (bar end)
-            const outerRadius = innerRadius + barHeight;
-            const x2 = centerX + Math.cos(angle) * outerRadius;
-            const y2 = centerY + Math.sin(angle) * outerRadius;
-            
-            // Draw bar
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            
-            // Color based on angle
-            const hue = (i / barCount) * 360;
-            ctx.strokeStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            if (glowEffects) {
-              ctx.shadowBlur = 8;
-              ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.6)`;
-              ctx.stroke();
-              ctx.shadowBlur = 0;
-            }
-          }
-          break;
-        }
-      }
+      // Use the modular visualization system
+      renderVisualization(ctx, dataArray, width, height, now, {
+        visualizationType,
+        sensitivity,
+        colorTheme,
+        barStyle,
+        glowEffects,
+        motionEffects,
+        backgroundStyle,
+        backgroundTheme,
+        customBgColor,
+        showFps,
+        
+        // References to data for visualizations that need to store state
+        starsRef,
+        particlesRef,
+        spiralPointsRef,
+        spectrumDataRef,
+        radialDataRef
+      });
       
       // Draw FPS counter if enabled
       if (showFps) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '12px Arial';
-        ctx.fillText(`FPS: ${Math.round(fpsRef.current)}`, 10, 20);
+        drawFpsCounter(ctx, fpsRef.current);
       }
     };
     
@@ -1132,7 +542,7 @@ const AudioVisualizer = () => {
               <BarChart4 className="mr-2" size={20} />
               Visualization
             </button>
-            <div className="absolute left-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 hidden group-hover:block transition-opacity hover:block">
+            <div className="absolute left-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="p-2">
                 <div className="grid grid-cols-2 gap-2">
                   <button 
@@ -1204,7 +614,7 @@ const AudioVisualizer = () => {
               <Droplets className="mr-2" size={20} />
               Color Theme
             </button>
-            <div className="absolute left-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 hidden group-hover:block transition-opacity hover:block">
+            <div className="absolute left-0 mt-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="p-2">
                 <div className="grid grid-cols-2 gap-2">
                   <button 
@@ -1256,7 +666,7 @@ const AudioVisualizer = () => {
                 <Layers className="mr-2" size={20} />
                 Bar Style
               </button>
-              <div className="absolute left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 hidden group-hover:block transition-opacity hover:block">
+              <div className="absolute left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div className="p-2">
                   <button 
                     onClick={() => setBarStyle('normal')}
@@ -1292,7 +702,7 @@ const AudioVisualizer = () => {
               <Box className="mr-2" size={20} />
               Background
             </button>
-            <div className="absolute left-0 mt-2 w-72 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 hidden group-hover:block transition-opacity hover:block">
+            <div className="absolute left-0 mt-2 w-72 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="p-3">
                 <div className="mb-3">
                   <p className="text-xs uppercase text-gray-400 mb-1 font-semibold">Background Style</p>
@@ -1410,7 +820,7 @@ const AudioVisualizer = () => {
               <Wand2 className="mr-2" size={20} />
               Effects
             </button>
-            <div className="absolute left-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 hidden group-hover:block transition-opacity hover:block">
+            <div className="absolute left-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
               <div className="p-2">
                 <div className="flex items-center p-2 hover:bg-gray-700 rounded-lg">
                   <input 
